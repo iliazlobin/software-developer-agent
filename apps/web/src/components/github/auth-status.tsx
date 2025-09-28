@@ -45,10 +45,9 @@ function AuthStatusContent() {
 
   useEffect(() => {
     if (githubToken) {
-      console.log("redirecting to chat");
       router.push("/chat");
     }
-  }, [githubToken]);
+  }, [githubToken, router]);
 
   const checkAuthStatus = async () => {
     try {

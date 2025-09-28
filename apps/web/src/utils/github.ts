@@ -12,7 +12,7 @@ function getBaseApiUrl(): string {
 export async function getInstallationRepositories(
   installationToken: string,
   page: number = 1,
-  perPage: number = 30,
+  perPage: number = 100,
 ): Promise<{
   repositories: Repository[];
   hasMore: boolean;
@@ -52,9 +52,9 @@ export async function getInstallationRepositories(
 export async function getRepositoryBranches(
   owner: string,
   repo: string,
-  page: number = 1,
-  perPage: number = 30,
-): Promise<{ branches: Branch[]; hasMore: boolean; totalCount?: number }> {
+  page = 1,
+  perPage = 50,
+): Promise<{ branches: Branch[]; hasMore: boolean; defaultBranch?: string }> {
   // First, get repository info to ensure we have the default branch
 
   const repoResponse = await fetch(
@@ -73,7 +73,7 @@ export async function getRepositoryBranches(
     defaultBranch = repoData.default_branch;
   }
 
-  // Fetch first 30 branches only
+  // Fetch branches with specified page size
   const response = await fetch(
     `${getBaseApiUrl()}github/proxy/repos/${owner}/${repo}/branches?per_page=${perPage}&page=${page}`,
     {

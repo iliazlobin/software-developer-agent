@@ -5,6 +5,12 @@ const nextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // Disable request logging in development
+  logging: {
+    fetches: {
+      fullUrl: false,
+    },
+  },
 };
 
 export default nextConfig;

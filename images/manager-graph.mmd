@@ -1,0 +1,20 @@
+%%{init: {"flowchart": {"curve": "linear"}}}%%
+graph TD;
+	__start__([__start__]):::startNode
+	initializegithubissue[initialize github issue]
+	classifymessage[classify message]
+	createnewsession[create new session]
+	startplanner[start planner]
+	__end__([__end__]):::endNode
+
+	__start__ --> initializegithubissue
+	createnewsession --> __end__
+	initializegithubissue --> classifymessage
+	startplanner --> __end__
+
+	classifymessage -.-> __end__
+	classifymessage -.-> startplanner
+	classifymessage -.-> createnewsession
+
+	classDef startNode fill:#90EE90,stroke:#333,stroke-width:2px;
+	classDef endNode fill:#FFB6C1,stroke:#333,stroke-width:2px;

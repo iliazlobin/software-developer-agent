@@ -44,22 +44,67 @@ const getHeaders = (
 };
 
 // Issue labeling events
+// webhooks.on("issues", async ({ payload }) => {
+//   logger.debug("Received issues event", { 
+//     action: payload.action,
+//     issue: payload.issue?.number, 
+//     repository: payload.repository?.full_name 
+//   });
+// });
+
+// webhooks.on("issue_comment", async ({ payload }) => {
+//   logger.debug("Received issue_comment event", { 
+//     action: payload.action,
+//     issue: payload.issue?.number, 
+//     repository: payload.repository?.full_name 
+//   });
+// });
+
 webhooks.on("issues.labeled", async ({ payload }) => {
+  logger.debug("Received issues.labeled event - calling handleIssueLabeled", {
+    issue: payload.issue?.number,
+    repository: payload.repository?.full_name,
+    labels: payload.issue?.labels?.map(l => l.name)
+  });
   await handleIssueLabeled(payload);
+});
+
+webhooks.on("issues.unlabeled", async ({ payload }) => {
+  logger.debug("Received issues.unlabeled event", {
+    issue: payload.issue?.number,
+    repository: payload.repository?.full_name,
+    removedLabel: payload.label?.name
+  });
 });
 
 // PR general comment events (discussion area)
 webhooks.on("issue_comment.created", async ({ payload }) => {
+  logger.debug("Received issue_comment.created event - calling handlePullRequestComment", {
+    issue: payload.issue?.number,
+    repository: payload.repository?.full_name,
+    commentId: payload.comment?.id
+  });
   await handlePullRequestComment(payload);
 });
 
 // PR review events (approve/request changes/comment)
 webhooks.on("pull_request_review.submitted", async ({ payload }) => {
+  logger.debug("Received pull_request_review.submitted event - calling handlePullRequestReview", {
+    pullRequest: payload.pull_request?.number,
+    repository: payload.repository?.full_name,
+    reviewId: payload.review?.id,
+    state: payload.review?.state
+  });
   await handlePullRequestReview(payload);
 });
 
 // PR review comment events (inline code comments)
 webhooks.on("pull_request_review_comment.created", async ({ payload }) => {
+  logger.debug("Received pull_request_review_comment.created event - calling handlePullRequestReviewComment", {
+    pullRequest: payload.pull_request?.number,
+    repository: payload.repository?.full_name,
+    commentId: payload.comment?.id
+  });
   await handlePullRequestReviewComment(payload);
 });
 
@@ -79,6 +124,12 @@ export async function unifiedWebhookHandler(
   }
 
   try {
+    logger.debug(`Processing webhook event: ${eventHeaders.name}`, {
+      id: eventHeaders.id,
+      installationId: eventHeaders.installationId,
+      action: payload.action
+    });
+    
     await webhooks.receive({
       id: eventHeaders.id,
       name: eventHeaders.name as any,

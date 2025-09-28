@@ -29,6 +29,15 @@ const saveRepositoryToLocalStorage = (repo: TargetRepository | null) => {
 
 const getRepositoryFromLocalStorage = (): TargetRepository | null => {
   try {
+    // First check if there's an environment variable for preselected repo
+    const envRepo = process.env.NEXT_PUBLIC_GITHUB_SELECTED_REPO;
+    if (envRepo && typeof window !== 'undefined') {
+      const [owner, repo] = envRepo.split('/');
+      if (owner && repo) {
+        return { owner, repo };
+      }
+    }
+
     const stored = localStorage.getItem(GITHUB_SELECTED_REPO_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
@@ -163,7 +172,7 @@ export function useGitHubApp(): UseGitHubAppReturn {
   }, [selectedRepositoryParam, selectedBranchParam]);
 
   useEffect(() => {
-    if (selectedRepository && !branchesLoading) {
+    if (selectedRepository && !branchesLoading && isInstalled) {
       setBranches([]);
       setBranchesPage(1);
       fetchBranches();
@@ -171,7 +180,7 @@ export function useGitHubApp(): UseGitHubAppReturn {
       setBranches([]);
       setSelectedBranchParam(null);
     }
-  }, [selectedRepository]);
+  }, [selectedRepository, isInstalled]);
 
   const selectedBranch = selectedBranchParam;
 
@@ -270,8 +279,20 @@ export function useGitHubApp(): UseGitHubAppReturn {
         setBranchesPage(page);
         setBranchesHasMore(branchData.hasMore);
       } catch (err) {
+        // If the error is related to missing authentication, don't show it as an error
         const errorMessage =
           err instanceof Error ? err.message : "Failed to fetch branches";
+
+        // Check if it's an authentication-related error
+        if (errorMessage.includes("github_installation_id") ||
+            errorMessage.includes("cookie is required") ||
+            errorMessage.includes("unauthorized")) {
+          // Silently handle auth errors - user might not be authenticated yet
+          setBranches([]);
+          setBranchesError(null);
+          return;
+        }
+
         console.error(
           `Error fetching branches for ${selectedRepository.owner}/${selectedRepository.repo}:`,
           err,

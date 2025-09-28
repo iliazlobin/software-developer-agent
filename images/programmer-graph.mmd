@@ -1,0 +1,46 @@
+%%{init: {"flowchart": {"curve": "linear"}}}%%
+graph TD;
+	__start__([__start__]):::startNode
+	initialize[initialize]
+	generateaction[generate action]
+	takeaction[take action]
+	updateplan[update plan]
+	handlecompletedtask[handle completed task]
+	generateconclusion[generate conclusion]
+	requesthelp[request help]
+	routetorevieworconclusion[route to review or conclusion]
+	reviewersubgraph[Open SWE   Reviewer]
+	openpr[open pr]
+	diagnoseerror[diagnose error]
+	summarizehistory[summarize history]
+	__end__([__end__]):::endNode
+
+	__start__ --> initialize
+	diagnoseerror --> generateaction
+	initialize --> generateaction
+	openpr --> __end__
+	summarizehistory --> generateaction
+	updateplan --> generateaction
+
+	generateaction -.-> takeaction
+	generateaction -.-> requesthelp
+	generateaction -.-> routetorevieworconclusion
+	generateaction -.-> updateplan
+	generateaction -.-> generateaction
+	generateaction -.-> handlecompletedtask
+	reviewersubgraph -.-> generateconclusion
+	reviewersubgraph -.-> generateaction
+	takeaction -.-> generateaction
+	takeaction -.-> diagnoseerror
+	handlecompletedtask -.-> summarizehistory
+	handlecompletedtask -.-> generateaction
+	handlecompletedtask -.-> routetorevieworconclusion
+	generateconclusion -.-> openpr
+	generateconclusion -.-> __end__
+	requesthelp -.-> generateaction
+	requesthelp -.-> __end__
+	routetorevieworconclusion -.-> generateconclusion
+	routetorevieworconclusion -.-> reviewersubgraph
+
+	classDef startNode fill:#90EE90,stroke:#333,stroke-width:2px;
+	classDef endNode fill:#FFB6C1,stroke:#333,stroke-width:2px;

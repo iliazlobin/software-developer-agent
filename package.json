@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "BROWSER=none turbo dev",
     "build": "turbo build",
     "turbo:command": "turbo",
     "format": "turbo format",
