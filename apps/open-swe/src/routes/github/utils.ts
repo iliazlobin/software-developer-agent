@@ -214,7 +214,14 @@ export async function createRunFromWebhook(inputs: {
     input: inputs.runInput,
     config: {
       recursion_limit: 400,
-      configurable: inputs.configurable,
+      configurable: {
+        ...inputs.configurable,
+        // Include GitHub installation details in configurable for access by nodes
+        [GITHUB_INSTALLATION_ID]: inputs.installationId.toString(),
+        [GITHUB_INSTALLATION_NAME]: inputs.installationName,
+        [GITHUB_USER_ID_HEADER]: inputs.userId.toString(),
+        [GITHUB_USER_LOGIN_HEADER]: inputs.userLogin,
+      },
     },
     ifNotExists: "create",
     streamResumable: true,

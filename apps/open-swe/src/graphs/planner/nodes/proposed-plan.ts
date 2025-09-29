@@ -50,6 +50,8 @@ import {
 } from "../../../utils/github/plan.js";
 import { regenerateInstallationToken } from "../../../utils/github/regenerate-token.js";
 import { shouldCreateIssue } from "../../../utils/should-create-issue.js";
+import { removeLabelFromIssue } from "../../../utils/github/api.js";
+import { getOpenSWELabel } from "../../../utils/github/label.js";
 
 const logger = createLogger(LogLevel.INFO, "ProposedPlan");
 
@@ -263,7 +265,19 @@ export async function interruptProposedPlan(
     await postGitHubIssueComment({
       githubIssueId: state.githubIssueId,
       targetRepository: state.targetRepository,
-      commentBody: `### 🟠 Plan Ready for Approval 🟠\n\nI've generated a plan for this issue and it's ready for your review.\n\n**Plan: ${state.proposedPlanTitle}**\n\n${proposedPlan.map((step, index) => `- Task ${index + 1}:\n${cleanTaskItems(step)}`).join("\n")}\n\nPlease review the plan and let me know if you'd like me to proceed, make changes, or if you have any feedback.`,
+      commentBody: `### 🟠 Plan Ready for Approval 🟠
+
+I've generated a plan for this issue and it's ready for your review.
+
+**Plan: ${state.proposedPlanTitle}**
+
+${proposedPlan.map((step, index) => `- Task ${index + 1}:\n${cleanTaskItems(step)}`).join("\n")}
+
+Please respond with one of these options:
+- **"accept"** or **"approve"** - to proceed with the plan
+- **"ignore"** or **"reject"** - to decline/close this issue
+
+I'll wait for your response before taking any action.`,
       config,
     });
   }
@@ -301,6 +315,49 @@ export async function interruptProposedPlan(
   }
 
   if (humanResponse.type === "ignore") {
+    // Plan was ignored, post comment and clean up
+    if (!isLocalMode(config) && state.githubIssueId) {
+      await postGitHubIssueComment({
+        githubIssueId: state.githubIssueId,
+        targetRepository: state.targetRepository,
+        commentBody: `### ❌ Plan Declined
+
+The proposed plan has been declined. This issue will now be closed.
+
+If you change your mind or have a different approach, feel free to create a new issue or reopen this one.`,
+        config,
+      });
+
+      // Remove the open-swe-dev label
+      try {
+        const defaultHeaders = getDefaultHeaders(config);
+        const installationToken =
+          defaultHeaders[GITHUB_INSTALLATION_TOKEN_COOKIE];
+
+        if (installationToken && state.targetRepository) {
+          const owner = state.targetRepository.owner;
+          const repo = state.targetRepository.repo;
+          const labelToRemove = getOpenSWELabel();
+
+          await removeLabelFromIssue({
+            owner,
+            repo,
+            issueNumber: state.githubIssueId,
+            label: labelToRemove,
+            githubInstallationToken: installationToken,
+          });
+
+          logger.info("Successfully removed label from issue", {
+            githubIssueId: state.githubIssueId,
+            targetRepository: state.targetRepository,
+            label: labelToRemove,
+          });
+        }
+      } catch (error) {
+        logger.warn("Failed to remove label from issue", { error });
+      }
+    }
+
     // Plan was ignored, end the process.
     return new Command({
       goto: END,

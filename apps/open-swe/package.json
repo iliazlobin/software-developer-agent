@@ -26,6 +26,8 @@
     "postinstall": "turbo build"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.896.0",
+    "@aws-sdk/lib-dynamodb": "^3.896.0",
     "@daytonaio/sdk": "^0.25.5",
     "@langchain/anthropic": "^0.3.26",
     "@langchain/community": "^0.3.47",

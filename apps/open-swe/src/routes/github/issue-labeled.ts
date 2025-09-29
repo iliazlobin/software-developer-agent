@@ -7,6 +7,7 @@ import {
 } from "../../utils/github/label.js";
 import { RequestSource } from "../../constants.js";
 import { GraphConfig } from "@openswe/shared/open-swe/types";
+import { dynamoRunStore, DynamoDBRunStore, RunStatus } from "../../utils/dynamodb.js";
 
 class IssueWebhookHandler extends WebhookHandlerBase {
   constructor() {
@@ -50,8 +51,10 @@ class IssueWebhookHandler extends WebhookHandlerBase {
       },
     );
 
+    let context: any = null;
+    let issueKey: string | undefined;
     try {
-      const context = await this.setupWebhookContext(payload);
+      context = await this.setupWebhookContext(payload);
       if (!context) {
         return;
       }
@@ -61,6 +64,26 @@ class IssueWebhookHandler extends WebhookHandlerBase {
         issueTitle: payload.issue.title,
         issueBody: payload.issue.body || "",
       };
+
+      // Create issue key for DynamoDB early
+      issueKey = DynamoDBRunStore.createIssueKey(
+        context.owner,
+        context.repo,
+        issueData.issueNumber
+      );
+
+      // Check if this issue has already been processed (use DynamoDB as a lock)
+      const existingRun = await dynamoRunStore.getRunMetadata(issueKey);
+      if (existingRun) {
+        this.logger.info("Issue already processed, skipping duplicate processing", {
+          issueKey,
+          existingRunId: existingRun.runId,
+          existingThreadId: existingRun.threadId,
+          existingStatus: existingRun.status,
+          existingCreatedAt: existingRun.createdAt,
+        });
+        return;
+      }
 
       const runInput = {
         messages: [
@@ -94,6 +117,27 @@ class IssueWebhookHandler extends WebhookHandlerBase {
         configurable,
       });
 
+      // Store run metadata in DynamoDB
+      await dynamoRunStore.storeRunMetadata({
+        issueKey,
+        runId,
+        threadId,
+        assistantId: "open-swe-manager", // Default assistant for issue processing
+        status: RunStatus.CREATED,
+        owner: context.owner,
+        repo: context.repo,
+        issueNumber: issueData.issueNumber,
+        issueTitle: issueData.issueTitle,
+        autoAcceptPlan: isAutoAcceptLabel,
+      });
+
+      this.logger.info("Stored run metadata in DynamoDB", {
+        issueKey,
+        runId,
+        threadId,
+        status: RunStatus.CREATED,
+      });
+
       await this.createComment(
         context,
         {
@@ -105,6 +149,14 @@ class IssueWebhookHandler extends WebhookHandlerBase {
         threadId,
       );
     } catch (error) {
+      // If we created run metadata but failed later, update status to failed
+      if (context && issueKey) {
+        try {
+          await dynamoRunStore.updateRunStatus(issueKey, RunStatus.FAILED);
+        } catch (dbError) {
+          this.logger.error("Failed to update run status to failed", dbError);
+        }
+      }
       this.handleError(error, "issue webhook");
     }
   }

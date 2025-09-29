@@ -129,7 +129,6 @@ export async function getRepositoryBranches(
   return {
     branches,
     hasMore: branches.length >= perPage,
-    totalCount: branches.length,
   };
 }
 

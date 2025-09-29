@@ -766,3 +766,68 @@ export async function quoteReplyToReview({
     1,
   );
 }
+
+/**
+ * Remove a label from a GitHub issue
+ */
+export async function removeLabelFromIssue({
+  owner,
+  repo,
+  issueNumber,
+  label,
+  githubInstallationToken,
+}: {
+  owner: string;
+  repo: string;
+  issueNumber: number;
+  label: string;
+  githubInstallationToken: string;
+}): Promise<boolean | null> {
+  return withGitHubRetry(
+    async (token: string) => {
+      try {
+        const octokit = new Octokit({
+          auth: token,
+        });
+
+        logger.info("Removing label from issue", {
+          issueNumber,
+          label,
+          owner,
+          repo,
+        });
+
+        await octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          name: label,
+        });
+
+        logger.info("Successfully removed label from issue", {
+          issueNumber,
+          label,
+          owner,
+          repo,
+        });
+
+        return true;
+      } catch (error: any) {
+        if (error.status === 404) {
+          logger.info("Label not found on issue (already removed?)", {
+            issueNumber,
+            label,
+            owner,
+            repo,
+          });
+          return true; // Consider this a success since the label is not there
+        }
+        throw error;
+      }
+    },
+    githubInstallationToken,
+    "Failed to remove label from issue",
+    undefined,
+    1,
+  );
+}

@@ -1,52 +1,52 @@
-import { v4 as uuidv4 } from "uuid";
-import { isAIMessage, ToolMessage, AIMessage } from "@langchain/core/messages";
-import { createLogger, LogLevel } from "../../../utils/logger.js";
+import { AIMessage, isAIMessage, ToolMessage } from "@langchain/core/messages";
+import { Command } from "@langchain/langgraph";
 import {
-  createApplyPatchTool,
-  createGetURLContentTool,
-  createTextEditorTool,
-  createShellTool,
-  createSearchDocumentForTool,
-  createWriteDefaultTsConfigTool,
-} from "../../../tools/index.js";
-import {
-  GraphState,
   GraphConfig,
+  GraphState,
   GraphUpdate,
   TaskPlan,
 } from "@openswe/shared/open-swe/types";
+import { v4 as uuidv4 } from "uuid";
+import {
+  createApplyPatchTool,
+  createGetURLContentTool,
+  createSearchDocumentForTool,
+  createShellTool,
+  createTextEditorTool,
+  createWriteDefaultTsConfigTool,
+} from "../../../tools/index.js";
 import {
   checkoutBranchAndCommit,
   getChangedFilesStatus,
 } from "../../../utils/github/git.js";
+import { createLogger, LogLevel } from "../../../utils/logger.js";
 import {
-  safeSchemaToString,
   safeBadArgsError,
+  safeSchemaToString,
 } from "../../../utils/zod-to-string.js";
-import { Command } from "@langchain/langgraph";
 
-import { getSandboxWithErrorHandling } from "../../../utils/sandbox.js";
-import {
-  FAILED_TO_GENERATE_TREE_MESSAGE,
-  getCodebaseTree,
-} from "../../../utils/tree.js";
-import { createInstallDependenciesTool } from "../../../tools/install-dependencies.js";
-import { isLocalMode } from "@openswe/shared/open-swe/local-mode";
-import { createGrepTool } from "../../../tools/grep.js";
-import { getMcpTools } from "../../../utils/mcp-client.js";
-import { shouldDiagnoseError } from "../../../utils/tool-message-error.js";
-import { getGitHubTokensFromConfig } from "../../../utils/github-tokens.js";
-import { processToolCallContent } from "../../../utils/tool-output-processing.js";
-import { getActiveTask } from "@openswe/shared/open-swe/tasks";
-import { createPullRequestToolCallMessage } from "../../../utils/message/create-pr-message.js";
-import { filterUnsafeCommands } from "../../../utils/command-evaluation.js";
 import { getRepoAbsolutePath } from "@openswe/shared/git";
+import { isLocalMode } from "@openswe/shared/open-swe/local-mode";
+import { getActiveTask } from "@openswe/shared/open-swe/tasks";
+import { createGrepTool } from "../../../tools/grep.js";
+import { createInstallDependenciesTool } from "../../../tools/install-dependencies.js";
 import {
   createReplyToCommentTool,
   createReplyToReviewCommentTool,
   createReplyToReviewTool,
   shouldIncludeReviewCommentTool,
 } from "../../../tools/reply-to-review-comment.js";
+import { filterUnsafeCommands } from "../../../utils/command-evaluation.js";
+import { getGitHubTokensFromConfig } from "../../../utils/github-tokens.js";
+import { getMcpTools } from "../../../utils/mcp-client.js";
+import { createPullRequestToolCallMessage } from "../../../utils/message/create-pr-message.js";
+import { getSandboxWithErrorHandling } from "../../../utils/sandbox.js";
+import { shouldDiagnoseError } from "../../../utils/tool-message-error.js";
+import { processToolCallContent } from "../../../utils/tool-output-processing.js";
+import {
+  FAILED_TO_GENERATE_TREE_MESSAGE,
+  getCodebaseTree,
+} from "../../../utils/tree.js";
 
 const logger = createLogger(LogLevel.INFO, "TakeAction");
 
