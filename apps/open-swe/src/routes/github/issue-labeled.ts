@@ -8,6 +8,7 @@ import {
 import { RequestSource } from "../../constants.js";
 import { GraphConfig } from "@openswe/shared/open-swe/types";
 import { dynamoRunStore, DynamoDBRunStore, RunStatus } from "../../utils/dynamodb.js";
+import { MANAGER_GRAPH_ID } from "@openswe/shared/constants";
 
 class IssueWebhookHandler extends WebhookHandlerBase {
   constructor() {
@@ -122,6 +123,7 @@ class IssueWebhookHandler extends WebhookHandlerBase {
         issueKey,
         runId,
         threadId,
+        graphId: MANAGER_GRAPH_ID,
         assistantId: "open-swe-manager", // Default assistant for issue processing
         status: RunStatus.CREATED,
         owner: context.owner,

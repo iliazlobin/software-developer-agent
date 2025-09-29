@@ -17,6 +17,10 @@ export interface RunMetadata {
   runId: string;
   /** LangGraph thread ID */
   threadId: string;
+  /** Graph ID (manager, planner, programmer) */
+  graphId: string;
+  /** Parent thread ID (for planner/programmer graphs linking to manager) */
+  parentThreadId?: string;
   /** Assistant ID used for the run */
   assistantId: string;
   /** Current status of the run */
@@ -221,6 +225,37 @@ export class DynamoDBRunStore {
   async getLatestRunMetadata(owner: string, repo: string, issueNumber: number): Promise<RunMetadata | null> {
     const issueKey = DynamoDBRunStore.createIssueKey(owner, repo, issueNumber);
     return this.getRunMetadata(issueKey);
+  }
+
+  /**
+   * Get run metadata by graph ID for a specific issue
+   * Useful for finding specific graph metadata (manager, planner, programmer)
+   */
+  async getRunMetadataByGraphId(owner: string, repo: string, issueNumber: number, graphId: string): Promise<RunMetadata | null> {
+    const baseIssueKey = DynamoDBRunStore.createIssueKey(owner, repo, issueNumber);
+    
+    // For manager graph, use the base issue key
+    if (graphId === "manager") {
+      return this.getRunMetadata(baseIssueKey);
+    }
+    
+    // For other graphs, try the suffixed key format
+    const graphIssueKey = `${baseIssueKey}-${graphId}`;
+    return this.getRunMetadata(graphIssueKey);
+  }
+
+  /**
+   * Get planner metadata for a specific issue
+   */
+  async getPlannerMetadata(owner: string, repo: string, issueNumber: number): Promise<RunMetadata | null> {
+    return this.getRunMetadataByGraphId(owner, repo, issueNumber, "planner");
+  }
+
+  /**
+   * Get manager metadata for a specific issue  
+   */
+  async getManagerMetadata(owner: string, repo: string, issueNumber: number): Promise<RunMetadata | null> {
+    return this.getRunMetadataByGraphId(owner, repo, issueNumber, "manager");
   }
 }
 

@@ -501,6 +501,11 @@ export const GraphConfigurationMetadata: {
       type: "hidden",
     },
   },
+  parentThreadId: {
+    x_open_swe_ui_config: {
+      type: "hidden",
+    },
+  },
 };
 
 export const GraphConfiguration = z.object({
@@ -515,6 +520,12 @@ export const GraphConfiguration = z.object({
    */
   run_id: withLangGraph(z.string().optional(), {
     metadata: GraphConfigurationMetadata.run_id,
+  }),
+  /**
+   * The parent thread ID for linking child graphs to parent graphs.
+   */
+  parentThreadId: withLangGraph(z.string().optional(), {
+    metadata: GraphConfigurationMetadata.parentThreadId,
   }),
   /**
    * The maximum number of context gathering actions to take during planning.

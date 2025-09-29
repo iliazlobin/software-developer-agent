@@ -14,7 +14,10 @@ This directory contains various test and debug scripts for the Open SWE project.
 # Navigate to tests directory
 cd /home/izlobin/wb/open-swe/tests
 
-# Run all main tests
+# Run all tests with summary (recommended)
+node run-all-tests.js
+
+# Or run individual tests
 node test-dynamodb.js           # Test database operations
 node test-github-auth-simple.js # Test GitHub authentication
 
@@ -82,6 +85,30 @@ node tests/test-github-auth-simple.js
 #### `test-jwt.js`
 **Purpose**: Focused JWT token generation testing  
 **Features**: Tests JWT signing and timing validation
+
+---
+
+#### `test-production-jwt.mjs`
+**Purpose**: Test production JWT generation using the built shared package  
+**Features**: 
+- Uses actual production JWT generation code
+- Tests system date compatibility (2025 → 2024-12-01 fallback)
+- Validates complete GitHub App authentication flow
+
+**Usage**:
+```bash
+cd /home/izlobin/wb/open-swe/tests
+node test-production-jwt.mjs
+```
+
+**Expected Output**:
+```
+🔧 Testing Production JWT Generation
+
+✅ Production JWT generated successfully
+✅ Installation token generated successfully!
+🎉 Production JWT generation is working correctly!
+```
 
 ---
 
@@ -211,47 +238,3 @@ aws dynamodb list-tables --endpoint-url http://localhost:8000 --region us-east-1
 - **PostgreSQL**: `localhost:5432` (checkpointer storage)
 - **DynamoDB Local**: `http://localhost:8000` (run metadata)
 - **Redis**: `localhost:6379` (optional caching)
-
-## Troubleshooting Common Issues
-
-### Authentication Issues
-1. **Bad Credentials**: 
-   - Verify GitHub App private key is complete and properly formatted in `.env`
-   - Check that `GITHUB_APP_ID` matches your GitHub App
-   - Ensure GitHub App has not been revoked or regenerated
-   
-2. **JWT Timing Issues**:
-   - **"'exp' is too far in the future"**: System date is set incorrectly (scripts handle this automatically)
-   - **"Token expired"**: System clock is behind real time
-   - Scripts automatically detect future system dates and use conservative base times
-   
-3. **Installation Missing**: 
-   - Verify GitHub App is installed on target repositories
-   - Check installation permissions in GitHub App settings
-
-### System Date Issues
-⚠️ **Important**: If your system date is set to the future (e.g., 2025), the authentication scripts will automatically detect this and use a conservative base time (2024-12-01) for GitHub API compatibility. This is normal behavior.
-
-**Symptoms of future system date**:
-- Scripts show: `⚠️ System year 2025 detected, using base time 2024-12-01`
-- JWT timing shows different years for `now` vs `baseTime`
-
-### Database Issues
-1. **Connection Refused**: Ensure Docker services are running
-2. **Table Not Found**: Scripts will auto-create tables when possible
-3. **Permission Denied**: Check AWS credentials for DynamoDB access
-
-### Environment Issues
-1. **Multi-line Variables**: Use quotes around multi-line values in `.env`
-2. **Path Issues**: Run scripts from correct directory (tests scripts work from `tests/` dir)
-3. **Dependencies**: Ensure `yarn install` completed successfully from project root
-
-## Test Results Summary
-
-✅ **Authentication Status**: GitHub App working (ID: 2010770, Installation: 87396728)  
-✅ **Database Status**: DynamoDB schema fixed (`issueKey` primary key)  
-✅ **Infrastructure Status**: All services operational  
-✅ **Environment Parsing**: Multi-line variable support working  
-✅ **JWT Generation**: Proper timing with future date handling  
-
-The system is ready for end-to-end workflow testing with proper authentication and persistence configured.

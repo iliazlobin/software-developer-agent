@@ -18,6 +18,8 @@ This directory contains Docker Compose configuration for local development servi
 ```bash
 # Navigate to local directory
 cd ./local
+export AWS_ACCESS_KEY_ID=dummy
+export AWS_SECRET_ACCESS_KEY=dummy
 
 # Start DynamoDB and PostgreSQL
 docker-compose up -d
@@ -363,10 +365,9 @@ aws dynamodb scan \
     --table-name openswe-run-metadata \
     --endpoint-url http://localhost:8000 \
     --region us-east-1 \
-    --select "COUNT" \
-    --no-cli-pager
+    --no-cli-pager \
+    --query "reverse(sort_by(Items, &issueKey.S))[:3]"
 
-# Purge all items from openswe-run-metadata table
 aws dynamodb scan \
     --table-name openswe-run-metadata \
     --endpoint-url http://localhost:8000 \

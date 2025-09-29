@@ -333,6 +333,11 @@ export async function classifyMessage(
           command: {
             resume: plannerResume,
           },
+          config: {
+            configurable: {
+              parentThreadId: config.configurable?.thread_id, // Pass manager thread ID
+            },
+          },
           streamMode: OPEN_SWE_STREAM_MODE as StreamMode[],
         },
       );

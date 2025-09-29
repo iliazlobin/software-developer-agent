@@ -29,6 +29,7 @@
   },
   "packageManager": "yarn@3.5.1",
   "dependencies": {
+    "dedent": "^1.7.0",
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2"
   }

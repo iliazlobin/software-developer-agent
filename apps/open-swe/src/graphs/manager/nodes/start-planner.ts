@@ -83,6 +83,7 @@ export async function startPlanner(
           recursion_limit: 400,
           configurable: {
             ...getCustomConfigurableFields(config),
+            parentThreadId: config.configurable?.thread_id, // Pass manager thread ID
             ...(isLocalMode(config) && {
               [LOCAL_MODE_HEADER]: "true",
             }),

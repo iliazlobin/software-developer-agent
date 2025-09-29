@@ -24,6 +24,7 @@ import {
   PLAN_INTERRUPT_DELIMITER,
   DO_NOT_RENDER_ID_PREFIX,
   PROGRAMMER_GRAPH_ID,
+  PLANNER_GRAPH_ID,
   OPEN_SWE_STREAM_MODE,
   LOCAL_MODE_HEADER,
   GITHUB_INSTALLATION_ID,
@@ -52,6 +53,7 @@ import { regenerateInstallationToken } from "../../../utils/github/regenerate-to
 import { shouldCreateIssue } from "../../../utils/should-create-issue.js";
 import { removeLabelFromIssue } from "../../../utils/github/api.js";
 import { getOpenSWELabel } from "../../../utils/github/label.js";
+import { dynamoRunStore, DynamoDBRunStore, RunStatus } from "../../../utils/dynamodb.js";
 
 const logger = createLogger(LogLevel.INFO, "ProposedPlan");
 
@@ -192,6 +194,63 @@ export async function interruptProposedPlan(
     proposedPlanLength: proposedPlan.length,
     proposedPlanTitle: state.proposedPlanTitle,
   });
+
+  // Store planner metadata in DynamoDB with link to manager thread
+  if (!isLocalMode(config) && state.githubIssueId && state.targetRepository) {
+    try {
+      const plannerRunId = config.configurable?.run_id;
+      const plannerThreadId = config.configurable?.thread_id;
+      
+      if (plannerRunId && plannerThreadId) {
+        const issueKey = DynamoDBRunStore.createIssueKey(
+          state.targetRepository.owner,
+          state.targetRepository.repo,
+          state.githubIssueId
+        );
+        
+        // Create separate planner issue key to avoid conflicts with manager metadata
+        const plannerIssueKey = `${issueKey}-planner`;
+        
+        // Use parentThreadId from configurable if available, otherwise fall back to DynamoDB lookup
+        let parentThreadId = config.configurable?.parentThreadId;
+        if (!parentThreadId) {
+          // Fallback: Get manager metadata to link as parent
+          const managerMetadata = await dynamoRunStore.getRunMetadata(issueKey);
+          parentThreadId = managerMetadata?.threadId;
+        }
+        
+        await dynamoRunStore.storeRunMetadata({
+          issueKey: plannerIssueKey,
+          runId: plannerRunId,
+          threadId: plannerThreadId,
+          graphId: PLANNER_GRAPH_ID,
+          parentThreadId: parentThreadId, // Link to manager thread
+          assistantId: "open-swe-planner",
+          status: RunStatus.PLAN_READY,
+          owner: state.targetRepository.owner,
+          repo: state.targetRepository.repo,
+          issueNumber: state.githubIssueId,
+          issueTitle: state.proposedPlanTitle,
+          autoAcceptPlan: state.autoAcceptPlan,
+        });
+
+        logger.info("Stored planner metadata in DynamoDB", {
+          plannerIssueKey,
+          plannerRunId,
+          plannerThreadId,
+          parentThreadId,
+          status: RunStatus.PLAN_READY,
+        });
+      } else {
+        logger.warn("Missing planner run or thread ID from config", {
+          plannerRunId,
+          plannerThreadId,
+        });
+      }
+    } catch (error) {
+      logger.warn("Failed to store planner metadata", { error });
+    }
+  }
 
   let planItems: PlanItem[];
   const userRequest = getInitialUserRequest(state.messages);

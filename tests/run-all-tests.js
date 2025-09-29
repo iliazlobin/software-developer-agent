@@ -51,6 +51,12 @@ console.log(`   📝 Total:  ${tests.length}`);
 
 if (failed === 0) {
   console.log('\n🎉 All tests passed! Your Open SWE environment is ready.');
+  console.log('\n📋 Current Configuration:');
+  console.log('   • GitHub App ID: 2010770');
+  console.log('   • Installation ID: 87396728');
+  console.log('   • LangGraph Server: http://localhost:2024');
+  console.log('   • PostgreSQL: localhost:5432 (checkpointer)');
+  console.log('   • DynamoDB Local: http://localhost:8000 (metadata)');
 } else {
   console.log('\n⚠️  Some tests failed. Check the output above for details.');
   console.log('   See README.md for troubleshooting information.');
