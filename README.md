@@ -1,6 +1,11 @@
 # Software Engineer Agent for Enterprise Development
+
+*An extension of [Open SWE](https://github.com/langchain-ai/open-swe) by LangChain*
+
+> **⚠️ Prototype Status**: This is prototype work in progress. Some functionality might not be fully tested or stable. Use with caution in production environments.
+
 ## Abstract
-This project provides an AI software engineer that automates the complete software development lifecycle—from requirements analysis and architecture design to implementation, testing. Powered by LangGraph, it acts as an autonomous development team member, creating production-ready code, comprehensive test suites, and maintaining high software quality standards for enterprise organizations.
+This project provides an AI software engineer that automates the complete software development lifecycle—from requirements analysis and architecture design to implementation, testing. Built as an extension of LangChain's Open SWE project, it acts as an autonomous development team member, creating production-ready code, comprehensive test suites, and maintaining high software quality standards for enterprise organizations.
 
 ## Motivation
 Enterprise software development faces unique challenges: complex requirements, strict compliance needs, extensive testing requirements, and the need for maintainable, scalable solutions. Manual development processes are bottlenecks in modern enterprises where speed and quality are both critical. This project solves these challenges by providing an AI agent that can understand business requirements, design appropriate solutions, implement code following enterprise standards, create comprehensive tests, and ensure quality—all while maintaining the rigor and documentation standards expected in enterprise environments.
@@ -38,17 +43,6 @@ The diagram below illustrates the end-to-end architecture of the Software Engine
 - **Issue-to-PR Workflow**: Automatically converts GitHub issues into pull requests with complete implementations
 - **Branch Management**: Handles feature branches, merge strategies, and git workflows
 - **Documentation**: Generates comprehensive documentation, API docs, and technical specifications
-
-## Custom Agents & Specialized Tools
-
-### Advanced Programming Agent
-This repository includes sophisticated programming capabilities with specialized tools for enterprise development. The Programmer Agent uses advanced code generation, refactoring tools, and integration with development environments. It understands enterprise patterns, can work with legacy codebases, and generates maintainable, scalable solutions.
-
-### Comprehensive Testing Suite
-The Testing Agent leverages Playwright for end-to-end testing, Jest for unit testing, and custom tools for integration testing. It creates test scenarios that cover business logic, user workflows, API integrations, and edge cases—ensuring enterprise-grade reliability.
-
-### Security & Compliance Integration
-Built-in security scanning, vulnerability assessment, and compliance checking ensure that generated code meets enterprise security standards and regulatory requirements.
 
 ## Repository Structure
 ```
@@ -194,25 +188,6 @@ WEBHOOK_URL=https://your-domain.com/api/webhooks/github
 yarn test:webhooks
 ```
 
-## Enterprise Features
-
-### Advanced Code Generation
-- **Multi-language Support**: TypeScript, Python, Java, C#, Go
-- **Framework Integration**: React, Next.js, NestJS, Spring Boot, .NET
-- **Database Integration**: PostgreSQL, MongoDB, Redis, Elasticsearch
-- **Cloud Platforms**: AWS, Azure, GCP with IaC support
-
-### Quality Assurance
-- **Automated Code Review**: Style, security, performance analysis
-- **Test Generation**: Unit, integration, E2E test creation
-- **Documentation**: API docs, technical specifications, user guides
-- **Compliance**: SOC2, GDPR, HIPAA compliance checking
-
-### Monitoring & Analytics
-- **Performance Metrics**: Code quality scores, development velocity
-- **Agent Analytics**: Task completion rates, error analysis
-- **Business Intelligence**: Development insights and productivity metrics
-
 ## Usage
 
 The Software Engineer Agent can be used in multiple ways:
@@ -228,6 +203,45 @@ The Software Engineer Agent integrates seamlessly with GitHub through webhooks, 
 
 ![GitHub Flow Diagram](./images/github-flow.png)
 
+### Technical Webhook Implementation
+
+The webhook integration operates through a sophisticated event-driven architecture that transforms GitHub issue events into automated development workflows:
+
+#### Webhook Event Processing
+1. **GitHub Event Capture**: When a label is added to an issue, GitHub sends a `issues.labeled` webhook payload to the agent's endpoint (`/api/webhooks/github`)
+2. **Signature Verification**: The webhook handler validates the GitHub signature using HMAC-SHA256 with the configured webhook secret to ensure request authenticity
+3. **Event Filtering**: The system filters for supported label patterns (`open-swe*`, `software-engineer*`) and ignores irrelevant events
+4. **Payload Extraction**: Critical data is extracted including issue title, body, repository context, user information, and label metadata
+
+#### Authentication & Authorization
+- **GitHub App Authentication**: Uses GitHub App installation tokens with repository-scoped permissions
+- **User Validation**: Verifies the label-adding user has appropriate repository access and is authorized to trigger runs
+- **Installation Context**: Validates the GitHub App is properly installed on the target repository with necessary permissions
+
+#### Run Creation Pipeline
+1. **Thread Generation**: Creates a unique thread ID using UUID for conversation tracking and isolation
+2. **Graph State Initialization**: Constructs the initial `GraphState` object with issue context, repository metadata, and execution parameters
+3. **Mode Configuration**: Determines execution mode (manual/auto) based on label type and sets `auto_accept` flag accordingly
+4. **Manager Graph Invocation**: Starts the LangGraph Manager workflow with the configured state and streaming enabled
+5. **Database Persistence**: Stores run metadata, thread association, and execution state in the backend database
+
+#### Real-time Communication
+- **Streaming Architecture**: Uses Server-Sent Events (SSE) for real-time progress updates to the web interface
+- **WebSocket Fallback**: Implements WebSocket connections for browsers that don't support SSE properly
+- **Progress Tracking**: Maintains execution state across graph nodes with detailed logging and error handling
+
+#### Issue Comment Integration
+- **Automatic Notifications**: Posts status comments on the GitHub issue using the GitHub API with installation authentication
+- **Run URL Generation**: Creates secure, user-specific URLs that link directly to the run interface
+- **Access Control**: Implements user-based access restrictions where only the issue creator can access the generated run
+- **Status Updates**: Provides real-time status updates through issue comments as the run progresses
+
+#### Error Handling & Recovery
+- **Webhook Retry Logic**: Implements exponential backoff for failed webhook deliveries with GitHub's retry mechanism
+- **State Recovery**: Maintains run state persistence to handle system restarts and network interruptions
+- **Graceful Degradation**: Continues operation even if secondary services (notifications, logging) are temporarily unavailable
+- **Audit Trail**: Comprehensive logging of all webhook events, state transitions, and error conditions
+
 ### Triggering Runs with Labels
 
 The agent monitors GitHub issues for specific labels that trigger automated development runs. When you add one of these labels to an issue, the agent automatically creates a new run to process your request.
@@ -236,104 +250,27 @@ The agent monitors GitHub issues for specific labels that trigger automated deve
 
 The agent supports multiple label types that control how it operates:
 
-**Manual Mode (`software-engineer`)**
+**Manual Mode (`open-swe`)**
 - Requires manual approval of the generated plan before code execution
 - Gives you full control over what changes will be made
 - Ideal for complex or sensitive changes where you want to review the approach first
 
-**Auto Mode (`software-engineer-auto`)**
+**Auto Mode (`open-swe-auto`)**
 - Automatically approves and executes the generated plan
 - Provides faster turnaround for straightforward requests
 - Best for simple changes or when you trust the agent to proceed autonomously
 
-**Enterprise Mode (`software-engineer-enterprise`)**
+**Enterprise Mode (`open-swe-enterprise`)**
 - Uses enhanced models for both planning and programming tasks
 - Includes comprehensive testing, security scanning, and compliance checking
 - Provides enterprise-grade performance and quality assurance for critical projects
 
-**Enterprise Auto Mode (`software-engineer-enterprise-auto`)**
+**Enterprise Auto Mode (`open-swe-enterprise-auto`)**
 - Combines automatic execution with enterprise-grade capabilities
 - Ideal for production environments that require both speed and quality
 - Includes all enterprise features with minimal human intervention
 
-> **Note**: In development environments, the labels are `software-engineer-dev`, `software-engineer-auto-dev`, `software-engineer-enterprise-dev`, and `software-engineer-enterprise-auto-dev` respectively. The system automatically uses the appropriate labels based on the `NODE_ENV` environment variable.
-
-### Automatic Run Creation
-
-When you add a supported label to a GitHub issue, the agent's webhook handler automatically:
-
-1. **Validates the request** - Verifies webhook signatures and authentication
-2. **Extracts issue context** - Captures the issue title, description, and metadata
-3. **Creates a new thread** - Generates a unique thread ID for the conversation
-4. **Starts the Manager Graph** - Initiates the agent workflow with the issue content
-5. **Configures execution mode** - Sets auto-accept based on the label type used
-
-The entire process happens within seconds of adding the label, providing immediate feedback through issue comments.
-
-### Issue Comments and Run Links
-
-Once a run is created, the agent automatically posts a comment on the triggering issue to confirm processing has started. This comment includes:
-
-- **Status confirmation** - "🤖 Software Engineer Agent has been triggered for this issue. Processing..."
-- **Run link** - Direct URL to view the run in the agent's web interface
-- **Access restriction notice** - Clarifies that only the issue creator can access the run
-- **Development metadata** - Run ID and thread ID for debugging (in a collapsible section)
-
-> **Tip**: The run link allows you to monitor progress in real-time, view the generated plan, and interact with the agent if needed. You can switch between manual and auto mode even after the run has started.
-
-### User Access Restrictions
-
-The agent implements strict access controls to ensure security and privacy:
-
-#### Issue Creator Access
-- Only the user who created the issue can access the generated run URL
-- This prevents unauthorized users from viewing or modifying runs triggered by others
-- Access is enforced through GitHub authentication and user verification
-
-#### Repository Permissions
-- The agent respects GitHub's repository permissions
-- Users must have appropriate access to the repository to trigger runs
-- The GitHub App installation determines which repositories can use the agent
-
-> **Note**: If you need to share access to a run with team members, you can do so through the agent's web interface after the run is created, or by having team members with repository access create their own issues.
-
-### Pull Request Integration
-
-When the agent successfully completes code changes, it automatically creates pull requests that are linked back to the original issue:
-
-#### Automatic PR Creation
-- **Generated after plan execution** - PRs are created once the Programmer Graph completes its work
-- **Linked to triggering issue** - PRs reference the original issue in their description
-- **Preserves commit history** - All intermediate commits are maintained for transparency
-- **Includes test results** - PR description contains comprehensive testing and quality metrics
-
-#### Issue Resolution
-- **Automatic closure** - When the generated PR is merged, GitHub automatically closes the linked issue
-- **Clear audit trail** - The connection between issue, run, and PR provides complete traceability
-- **Status updates** - Issue comments track the progress from request to completion
-
-> **Tip**: You can review the generated PR before merging, even in auto mode. The auto-accept setting only applies to plan approval, not PR merging, giving you final control over what code enters your repository.
-
-### Getting Started with GitHub Integration
-
-To start using the Software Engineer Agent with webhooks:
-
-1. **Install the agent** - Ensure the agent is installed on your repository as a GitHub App
-2. **Create a detailed issue** - Describe the changes you want with clear requirements and acceptance criteria
-3. **Add the appropriate label** - Use `software-engineer` for manual mode or `software-engineer-auto` for automatic mode
-4. **Monitor progress** - Watch issue comments for the run link and status updates
-5. **Review and merge** - Examine the generated PR and merge when satisfied with the changes
-
-For setup instructions, see the [Development Setup](./docs/setup-development.md) guide.
-
-## Testing Status Management
-
-The agent includes sophisticated testing status management that tracks testing progress throughout the development lifecycle:
-
-- **Intelligent Routing**: Testing only occurs when code changes require validation
-- **Status Tracking**: Comprehensive status management (`not_started`, `required`, `in_progress`, `completed`, `failed`, `skipped`)
-- **Retry Capability**: Automatic retry of failed tests with error analysis
-- **Agent Control**: AI can determine when testing should be skipped or required based on change analysis
+> **Note**: In development environments, the labels are `open-swe-dev`, `open-swe-auto-dev`, `open-swe-enterprise-dev`, and `open-swe-enterprise-auto-dev` respectively.
 
 ## References & Links
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
@@ -342,4 +279,3 @@ The agent includes sophisticated testing status management that tracks testing p
 - [API Documentation](./docs/api-reference.md)
 - [Testing Status Flow](./TESTING_STATUS_FLOW.md)
 - [Contributing Guide](./CONTRIBUTING.md)
-
