@@ -218,12 +218,113 @@ yarn test:webhooks
 The Software Engineer Agent can be used in multiple ways:
 
 - 🖥️ **From the UI**: Create, manage and execute development tasks from the web application. The interface provides real-time visibility into agent progress, code changes, and quality metrics.
-- 📝 **From GitHub**: Start development tasks directly from GitHub issues by adding specific labels:
-  - `software-engineer`: Standard development workflow with human review
-  - `software-engineer-auto`: Automated development with minimal human intervention
-  - `software-engineer-enterprise`: Enhanced workflow with comprehensive testing and compliance
+- 📝 **From GitHub**: Start development tasks directly from GitHub issues by adding specific labels
 - 🔗 **API Integration**: Use REST APIs to integrate with existing enterprise systems and workflows
 - 📊 **Analytics Dashboard**: Monitor development metrics, quality trends, and agent performance
+
+## GitHub Workflow Integration
+
+The Software Engineer Agent integrates seamlessly with GitHub through webhooks, providing a streamlined workflow where you can request code changes by simply adding labels to issues in repositories where the agent is installed.
+
+![GitHub Flow Diagram](./images/github-flow.png)
+
+### Triggering Runs with Labels
+
+The agent monitors GitHub issues for specific labels that trigger automated development runs. When you add one of these labels to an issue, the agent automatically creates a new run to process your request.
+
+#### Label Types
+
+The agent supports multiple label types that control how it operates:
+
+**Manual Mode (`software-engineer`)**
+- Requires manual approval of the generated plan before code execution
+- Gives you full control over what changes will be made
+- Ideal for complex or sensitive changes where you want to review the approach first
+
+**Auto Mode (`software-engineer-auto`)**
+- Automatically approves and executes the generated plan
+- Provides faster turnaround for straightforward requests
+- Best for simple changes or when you trust the agent to proceed autonomously
+
+**Enterprise Mode (`software-engineer-enterprise`)**
+- Uses enhanced models for both planning and programming tasks
+- Includes comprehensive testing, security scanning, and compliance checking
+- Provides enterprise-grade performance and quality assurance for critical projects
+
+**Enterprise Auto Mode (`software-engineer-enterprise-auto`)**
+- Combines automatic execution with enterprise-grade capabilities
+- Ideal for production environments that require both speed and quality
+- Includes all enterprise features with minimal human intervention
+
+> **Note**: In development environments, the labels are `software-engineer-dev`, `software-engineer-auto-dev`, `software-engineer-enterprise-dev`, and `software-engineer-enterprise-auto-dev` respectively. The system automatically uses the appropriate labels based on the `NODE_ENV` environment variable.
+
+### Automatic Run Creation
+
+When you add a supported label to a GitHub issue, the agent's webhook handler automatically:
+
+1. **Validates the request** - Verifies webhook signatures and authentication
+2. **Extracts issue context** - Captures the issue title, description, and metadata
+3. **Creates a new thread** - Generates a unique thread ID for the conversation
+4. **Starts the Manager Graph** - Initiates the agent workflow with the issue content
+5. **Configures execution mode** - Sets auto-accept based on the label type used
+
+The entire process happens within seconds of adding the label, providing immediate feedback through issue comments.
+
+### Issue Comments and Run Links
+
+Once a run is created, the agent automatically posts a comment on the triggering issue to confirm processing has started. This comment includes:
+
+- **Status confirmation** - "🤖 Software Engineer Agent has been triggered for this issue. Processing..."
+- **Run link** - Direct URL to view the run in the agent's web interface
+- **Access restriction notice** - Clarifies that only the issue creator can access the run
+- **Development metadata** - Run ID and thread ID for debugging (in a collapsible section)
+
+> **Tip**: The run link allows you to monitor progress in real-time, view the generated plan, and interact with the agent if needed. You can switch between manual and auto mode even after the run has started.
+
+### User Access Restrictions
+
+The agent implements strict access controls to ensure security and privacy:
+
+#### Issue Creator Access
+- Only the user who created the issue can access the generated run URL
+- This prevents unauthorized users from viewing or modifying runs triggered by others
+- Access is enforced through GitHub authentication and user verification
+
+#### Repository Permissions
+- The agent respects GitHub's repository permissions
+- Users must have appropriate access to the repository to trigger runs
+- The GitHub App installation determines which repositories can use the agent
+
+> **Note**: If you need to share access to a run with team members, you can do so through the agent's web interface after the run is created, or by having team members with repository access create their own issues.
+
+### Pull Request Integration
+
+When the agent successfully completes code changes, it automatically creates pull requests that are linked back to the original issue:
+
+#### Automatic PR Creation
+- **Generated after plan execution** - PRs are created once the Programmer Graph completes its work
+- **Linked to triggering issue** - PRs reference the original issue in their description
+- **Preserves commit history** - All intermediate commits are maintained for transparency
+- **Includes test results** - PR description contains comprehensive testing and quality metrics
+
+#### Issue Resolution
+- **Automatic closure** - When the generated PR is merged, GitHub automatically closes the linked issue
+- **Clear audit trail** - The connection between issue, run, and PR provides complete traceability
+- **Status updates** - Issue comments track the progress from request to completion
+
+> **Tip**: You can review the generated PR before merging, even in auto mode. The auto-accept setting only applies to plan approval, not PR merging, giving you final control over what code enters your repository.
+
+### Getting Started with GitHub Integration
+
+To start using the Software Engineer Agent with webhooks:
+
+1. **Install the agent** - Ensure the agent is installed on your repository as a GitHub App
+2. **Create a detailed issue** - Describe the changes you want with clear requirements and acceptance criteria
+3. **Add the appropriate label** - Use `software-engineer` for manual mode or `software-engineer-auto` for automatic mode
+4. **Monitor progress** - Watch issue comments for the run link and status updates
+5. **Review and merge** - Examine the generated PR and merge when satisfied with the changes
+
+For setup instructions, see the [Development Setup](./docs/setup-development.md) guide.
 
 ## Testing Status Management
 
