@@ -21,6 +21,7 @@ import {
   createSearchDocumentForTool,
   createWriteDefaultTsConfigTool,
 } from "../../../../tools/index.js";
+import { createSetTestingStatusTool } from "../../../../tools/set-testing-status.js";
 import { formatPlanPrompt } from "../../../../utils/plan-prompt.js";
 import { stopSandbox } from "../../../../utils/sandbox.js";
 import { createLogger, LogLevel } from "../../../../utils/logger.js";
@@ -203,6 +204,7 @@ async function createToolsAndPrompt(
     createMarkTaskCompletedToolFields(),
     createSearchDocumentForTool(state, config),
     createWriteDefaultTsConfigTool(state, config),
+    createSetTestingStatusTool(state, config),
     ...(shouldIncludeReviewCommentTool(state, config)
       ? [
           createReplyToReviewCommentTool(state, config),

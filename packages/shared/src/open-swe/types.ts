@@ -36,6 +36,14 @@ export interface ModelTokenData extends CacheMetrics {
   model: string;
 }
 
+export type TestingStatus = 
+  | "not_started"    // Testing has not been initiated
+  | "required"       // Testing is required and should be performed
+  | "in_progress"    // Testing is currently being executed
+  | "completed"      // Testing has been completed successfully
+  | "failed"         // Testing failed and needs adjustment
+  | "skipped";       // Testing was skipped (e.g., no testable changes)
+
 export type PlanItem = {
   /**
    * The index of the plan item. This is the order in which
@@ -275,6 +283,16 @@ export const GraphAnnotation = MessagesZodState.extend({
       fn: (_state, update) => update,
     },
     default: () => 0,
+  }),
+  /**
+   * The current status of testing for this task.
+   */
+  testingStatus: withLangGraph(z.custom<TestingStatus>(), {
+    reducer: {
+      schema: z.custom<TestingStatus>(),
+      fn: (_state, update) => update,
+    },
+    default: () => "not_started",
   }),
 
   tokenData: withLangGraph(z.custom<ModelTokenData[]>().optional(), {

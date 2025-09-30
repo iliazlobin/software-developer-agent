@@ -19,6 +19,7 @@ import {
 import { BaseMessage, isAIMessage } from "@langchain/core/messages";
 import { initializeSandbox } from "../shared/initialize-sandbox.js";
 import { graph as reviewerGraph } from "../reviewer/index.js";
+import { graph as testingGraph } from "../testing/index.js";
 import { getRemainingPlanItems } from "../../utils/current-task.js";
 import { getActivePlanItems } from "@openswe/shared/open-swe/tasks";
 import { createMarkTaskCompletedToolFields } from "@openswe/shared/open-swe/tools";
@@ -80,6 +81,17 @@ function routeGeneratedAction(
       return "handle-completed-task";
     }
 
+    // Handle testing status tool call
+    if (toolCall.name === "set_testing_status") {
+      const testingStatus = toolCall.args?.status;
+      if (testingStatus) {
+        return new Send("take-action", {
+          ...state,
+          testingStatus: testingStatus,
+        });
+      }
+    }
+
     return "take-action";
   }
 
@@ -96,19 +108,45 @@ function routeGeneratedAction(
 }
 
 /**
- * Conditional edge called after the reviewer. If there are no more actions to take, then open a PR.
- * Otherwise, route to generate actions to continue with the new tasks.
+ * Conditional edge called after the reviewer. Continue with remaining actions.
  */
-function routeGenerateActionsOrEnd(
-  state: GraphState,
-): "generate-conclusion" | "generate-action" {
-  const activePlanItems = getActivePlanItems(state.taskPlan);
-  const allCompleted = activePlanItems.every((p) => p.completed);
-  if (allCompleted) {
-    return "generate-conclusion";
-  }
-
+function routeFromReviewerToActions(
+  _state: GraphState,
+): "generate-action" {
   return "generate-action";
+}
+
+/**
+ * Conditional edge called after testing. Move to generate conclusion.
+ */
+function routeFromTestingToConclusion(
+  _state: GraphState,
+): "generate-conclusion" {
+  return "generate-conclusion";
+}
+
+/**
+ * Determines if testing should be skipped based on the nature of changes
+ */
+function shouldSkipTesting(state: GraphState): boolean {
+  // Check if there are no significant code changes that would require testing
+  // For now, we'll be conservative and require testing for all completed tasks
+  // Future enhancements could analyze the changed files to determine if testing is needed
+  
+  const activePlanItems = getActivePlanItems(state.taskPlan);
+  const completedItems = activePlanItems.filter(p => p.completed);
+  
+  // Skip testing if no tasks were actually completed
+  if (completedItems.length === 0) {
+    return true;
+  }
+  
+  // Could add more sophisticated logic here to check:
+  // - If only documentation was changed
+  // - If only configuration files were modified
+  // - If changes are in non-code files
+  
+  return false;
 }
 
 function routeToReviewOrConclusion(
@@ -116,12 +154,67 @@ function routeToReviewOrConclusion(
   config: GraphConfig,
 ): Command {
   const maxAllowedReviews = config.configurable?.maxReviewCount ?? 3;
+  
+  // Check if all active plan items are completed
+  const activePlanItems = getActivePlanItems(state.taskPlan);
+  const allCompleted = activePlanItems.every((p) => p.completed);
+  
+  // If all tasks are completed, check testing status
+  if (allCompleted) {
+    const { testingStatus } = state;
+    
+    // If testing should be skipped, mark it as skipped and go to conclusion
+    if (shouldSkipTesting(state)) {
+      return new Command({
+        goto: "generate-conclusion",
+        update: {
+          testingStatus: "skipped",
+        },
+      });
+    }
+    
+    // If testing hasn't been started or is required, go to testing
+    if (testingStatus === "not_started" || testingStatus === "required") {
+      return new Command({
+        goto: "testing-subgraph",
+        update: {
+          testingStatus: "in_progress",
+        },
+      });
+    }
+    
+    // If testing failed and needs adjustment, go back to testing
+    if (testingStatus === "failed") {
+      return new Command({
+        goto: "testing-subgraph",
+        update: {
+          testingStatus: "in_progress",
+        },
+      });
+    }
+    
+    // If testing is completed or skipped, proceed to conclusion
+    if (testingStatus === "completed" || testingStatus === "skipped") {
+      return new Command({
+        goto: "generate-conclusion",
+      });
+    }
+    
+    // If testing is in progress, this shouldn't happen in normal flow
+    // but handle it by going to conclusion
+    return new Command({
+      goto: "generate-conclusion",
+    });
+  }
+  
+  // If we've reached max reviews, go to conclusion
   if (state.reviewsCount >= maxAllowedReviews) {
     return new Command({
       goto: "generate-conclusion",
     });
   }
 
+  // Otherwise, go to reviewer
   return new Command({
     goto: "reviewer-subgraph",
   });
@@ -148,9 +241,10 @@ const workflow = new StateGraph(GraphAnnotation, GraphConfiguration)
     ends: ["generate-action", END],
   })
   .addNode("route-to-review-or-conclusion", routeToReviewOrConclusion, {
-    ends: ["generate-conclusion", "reviewer-subgraph"],
+    ends: ["generate-conclusion", "reviewer-subgraph", "testing-subgraph"],
   })
   .addNode("reviewer-subgraph", reviewerGraph)
+  .addNode("testing-subgraph", testingGraph)
   .addNode("open-pr", openPullRequest)
   .addNode("diagnose-error", diagnoseError)
   .addNode("summarize-history", summarizeHistory)
@@ -166,9 +260,11 @@ const workflow = new StateGraph(GraphAnnotation, GraphConfiguration)
   ])
   .addEdge("update-plan", "generate-action")
   .addEdge("diagnose-error", "generate-action")
-  .addConditionalEdges("reviewer-subgraph", routeGenerateActionsOrEnd, [
-    "generate-conclusion",
+  .addConditionalEdges("reviewer-subgraph", routeFromReviewerToActions, [
     "generate-action",
+  ])
+  .addConditionalEdges("testing-subgraph", routeFromTestingToConclusion, [
+    "generate-conclusion",
   ])
   .addEdge("summarize-history", "generate-action")
   .addEdge("open-pr", END);
